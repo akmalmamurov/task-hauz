@@ -104,7 +104,8 @@ function EmailStep() {
       </CardHeader>
 
       <Form {...form}>
-        <form onSubmit={onSubmit}>
+        {/* noValidate: the schema decides, not the browser's own bubble. */}
+        <form onSubmit={onSubmit} noValidate>
           <CardContent>
             <FormField
               control={form.control}
@@ -178,7 +179,7 @@ function CodeStep({ email }: { email: string }) {
       </CardHeader>
 
       <Form {...form}>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} noValidate>
           <CardContent>
             <FormField
               control={form.control}

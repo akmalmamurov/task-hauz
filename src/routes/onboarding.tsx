@@ -162,7 +162,8 @@ function OnboardingForm({ target }: { target: string }) {
       </CardHeader>
 
       <Form {...form}>
-        <form onSubmit={onSubmit}>
+        {/* noValidate: the schema decides, not the browser's own bubble. */}
+        <form onSubmit={onSubmit} noValidate>
           <CardContent className="grid gap-6">
             <FormField
               control={form.control}

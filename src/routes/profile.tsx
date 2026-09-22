@@ -155,7 +155,13 @@ function ProfileForm({ account }: { account: PersonalAccount }) {
       </CardHeader>
 
       <Form {...form}>
-        <form onSubmit={onSubmit}>
+        {/*
+          noValidate because the schema is what decides whether the form may be
+          sent. Left on, the browser refuses a malformed email itself, in a
+          bubble that says something else, and our message under the field never
+          gets the chance to appear.
+        */}
+        <form onSubmit={onSubmit} noValidate>
           <CardContent className="grid gap-6">
             <FormField
               control={form.control}

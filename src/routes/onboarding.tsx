@@ -8,7 +8,7 @@ import {
   type PersonalRole,
 } from '../lib/personal-account'
 import { safeRedirect } from '../lib/safe-redirect'
-import { createPersonalAccount, getAccountState } from '../server/personal-account'
+import { createPersonalAccount } from '../server/personal-account'
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
@@ -16,30 +16,32 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute('/onboarding')({
   validateSearch: searchSchema,
-  beforeLoad: ({ search }) => ({ target: safeRedirect(search.redirect) }),
-  loader: async ({ context }) => {
-    const state = await getAccountState()
+  // The root route resolved the account on this request; this reads its
+  // answer. Both redirects happen before the page renders, server side on a
+  // hard load, so neither is a flash of the wrong screen.
+  beforeLoad: ({ search, context }) => {
+    const target = safeRedirect(search.redirect)
+    const state = context.accountState
 
     if (state.status === 'signed-out') {
       throw redirect({
-        href: `/signin?redirect=${encodeURIComponent(`/onboarding?redirect=${context.target}`)}`,
+        href: `/signin?redirect=${encodeURIComponent(`/onboarding?redirect=${target}`)}`,
       })
     }
 
     // Already onboarded, so there is nothing to fill in. Sending them on is
     // what "someone who already has an account skips this" means.
     if (state.status === 'ready') {
-      throw redirect({ href: context.target })
+      throw redirect({ href: target })
     }
 
-    return { state }
+    return { target, state }
   },
   component: Onboarding,
 })
 
 function Onboarding() {
-  const { state } = Route.useLoaderData()
-  const { target } = Route.useRouteContext()
+  const { state, target } = Route.useRouteContext()
 
   // We could not find out whether they have an account. Offering the form here
   // would risk a 409 for someone who already has one, so ask them to retry

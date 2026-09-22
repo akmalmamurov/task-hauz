@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { safeRedirect } from '../lib/safe-redirect'
 import {
   cancelSignIn,
-  getCurrentUser,
   getPendingSignIn,
   requestEmailCode,
   verifyEmailCode,
@@ -23,14 +22,16 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute('/signin')({
   validateSearch: searchSchema,
-  beforeLoad: async ({ search }) => {
+  beforeLoad: ({ search, context }) => {
     const target = safeRedirect(search.redirect)
 
     // Someone already signed in has no business on this page: offering them a
     // second sign-in is confusing and creates a redundant Appwrite session.
     // safeRedirect refuses /signin as a target, so this cannot bounce.
-    const user = await getCurrentUser()
-    if (user) {
+    //
+    // The root route already asked who is signed in, on this same request, so
+    // this reads its answer instead of asking Appwrite again.
+    if (context.accountState.status !== 'signed-out') {
       throw redirect({ href: target })
     }
 

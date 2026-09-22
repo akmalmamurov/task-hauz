@@ -15,8 +15,8 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import type { AccountState } from '../lib/personal-account'
-import { logout } from '../server/auth'
+import type { AccountState } from '@/types/personal-account'
+import { logout } from '@/server/auth'
 
 export function Header({ state }: { state: AccountState }) {
   return (

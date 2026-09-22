@@ -21,7 +21,7 @@ import {
   PERSONAL_ROLES,
   personalAccountSchema,
   type AccountState,
-} from '../lib/personal-account'
+} from '@/types/personal-account'
 import { resolveCurrentUser } from './current-user'
 import { callPersonalAccountFunction } from './personal-account-function'
 import { readSessionSecret } from './session'

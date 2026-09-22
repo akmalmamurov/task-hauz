@@ -6,9 +6,9 @@ import {
   PERSONAL_ROLES,
   ROLE_LABELS,
   type PersonalRole,
-} from '../lib/personal-account'
-import { safeRedirect } from '../lib/safe-redirect'
-import { createPersonalAccount } from '../server/personal-account'
+} from '@/types/personal-account'
+import { safeRedirect } from '@/utils/safe-redirect'
+import { createPersonalAccount } from '@/server/personal-account'
 
 const searchSchema = z.object({
   redirect: z.string().optional(),

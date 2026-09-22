@@ -2,13 +2,13 @@ import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { z } from 'zod'
 
-import { safeRedirect } from '../lib/safe-redirect'
+import { safeRedirect } from '@/utils/safe-redirect'
 import {
   cancelSignIn,
   getPendingSignIn,
   requestEmailCode,
   verifyEmailCode,
-} from '../server/auth'
+} from '@/server/auth'
 
 /**
  * `redirect` is whatever was in the URL, so it is untrusted until safeRedirect

@@ -6,9 +6,9 @@ import {
   createRootRouteWithContext,
 } from '@tanstack/react-router'
 
-import { Header } from '../components/header'
-import type { AccountState } from '../lib/personal-account'
-import { getAccountState } from '../server/personal-account'
+import { Header } from '@/components/header'
+import type { AccountState } from '@/types/personal-account'
+import { getAccountState } from '@/server/personal-account'
 
 import appCss from '../styles.css?url'
 

@@ -1,13 +1,13 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { ROLE_LABELS, type PersonalAccount } from '../lib/personal-account'
+import { ROLE_LABELS, type PersonalAccount } from '@/types/personal-account'
 import {
   buildProfilePatch,
   type ProfileFieldErrors,
   type ProfileFormValues,
-} from '../lib/profile-patch'
-import { updatePersonalAccount } from '../server/personal-account'
+} from '@/lib/profile-patch'
+import { updatePersonalAccount } from '@/server/personal-account'
 
 /** Where a signed-out visitor is sent back to once they have signed in. */
 const SELF = '/profile'

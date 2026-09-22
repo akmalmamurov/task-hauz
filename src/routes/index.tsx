@@ -1,16 +1,29 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({ component: Home })
 
+/**
+ * A landing page only, so there is somewhere to come back to after signing in
+ * and somewhere to see the header from. The account state it reads is the one
+ * the root route already resolved, so this page costs nothing extra.
+ */
 function Home() {
+  const { accountState } = Route.useRouteContext()
+
   return (
     <main>
       <h1>HAUZ</h1>
-      <p>
-        Nothing is built yet. Read <code>TASK.md</code> for what to build and{' '}
-        <code>README.md</code> for how to connect this to your own Appwrite
-        project.
-      </p>
+
+      {accountState.status === 'signed-out' ? (
+        <p>
+          <Link to="/signin">Sign in</Link> with your email address. We send a
+          six digit code, there is no password.
+        </p>
+      ) : (
+        <p>
+          You are signed in. <Link to="/profile">Your profile</Link>.
+        </p>
+      )}
     </main>
   )
 }

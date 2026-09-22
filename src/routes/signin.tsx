@@ -1,14 +1,42 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { safeRedirect } from '@/utils/safe-redirect'
+import { Page } from '@/components/page'
+import { Button } from '@/components/ui/button'
 import {
-  cancelSignIn,
-  getPendingSignIn,
-  requestEmailCode,
-  verifyEmailCode,
-} from '@/server/auth'
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { EMAIL_CODE_LENGTH, EMAIL_CODE_TTL_MINUTES } from '@/constants'
+import { PATH } from '@/constants/path'
+import { useFormErrors } from '@/hooks/use-form-errors'
+import {
+  codeFormSchema,
+  emailFormSchema,
+  useCancelSignIn,
+  useRequestEmailCode,
+  useVerifyEmailCode,
+  type CodeFormValues,
+  type EmailFormValues,
+} from '@/modules/auth'
+import { getPendingSignIn } from '@/server/auth'
+import { safeRedirect } from '@/utils/safe-redirect'
 
 /**
  * `redirect` is whatever was in the URL, so it is untrusted until safeRedirect
@@ -46,133 +74,152 @@ export const Route = createFileRoute('/signin')({
 function SignIn() {
   const { pending } = Route.useLoaderData()
 
-  return pending ? <CodeStep email={pending.email} /> : <EmailStep />
+  return <Page>{pending ? <CodeStep email={pending.email} /> : <EmailStep />}</Page>
 }
 
 function EmailStep() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const requestEmailCode = useRequestEmailCode()
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setSubmitting(true)
+  const form = useForm<EmailFormValues>({
+    resolver: zodResolver(emailFormSchema),
+    defaultValues: { email: '' },
+  })
 
-    try {
-      await requestEmailCode({ data: { email } })
-
+  const onSubmit = form.handleSubmit((values) =>
+    requestEmailCode.mutate(values, {
       // Re-runs the loader, which now sees the pending cookie and renders the
       // code step.
-      await router.invalidate()
-    } catch {
-      setError('We could not send a code to that address. Check it and retry.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      onSuccess: () => void router.invalidate(),
+    }),
+  )
 
   return (
-    <main>
-      <h1>Sign in</h1>
-      <p>We will email you a six digit code.</p>
+    <Card className="mx-auto max-w-md">
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>
+          We will email you a {EMAIL_CODE_LENGTH} digit code.
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={onSubmit}>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
+      <Form {...form}>
+        <form onSubmit={onSubmit}>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" autoComplete="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Sending...' : 'Send code'}
-        </button>
-      </form>
-
-      {error ? <p role="alert">{error}</p> : null}
-    </main>
+          <CardFooter className="mt-6">
+            <Button type="submit" isLoading={requestEmailCode.isPending}>
+              Send code
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
+    </Card>
   )
 }
+
+/** The only field the server can put an error on, so the only one we map. */
+const CODE_FIELDS = ['code'] as const
 
 function CodeStep({ email }: { email: string }) {
   const { target } = Route.useRouteContext()
   const router = useRouter()
-  const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const verifyEmailCode = useVerifyEmailCode()
+  const cancelSignIn = useCancelSignIn()
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setSubmitting(true)
+  const form = useForm<CodeFormValues>({
+    resolver: zodResolver(codeFormSchema),
+    defaultValues: { code: '' },
+  })
+  const applyErrors = useFormErrors(form, CODE_FIELDS)
 
-    try {
-      const result = await verifyEmailCode({ data: { code } })
-
-      if (!result.ok) {
-        setError(result.message)
-        return
-      }
-
-      // Everyone goes via /onboarding, and its loader decides: someone who
-      // already has an account is redirected straight on to `target`, server
-      // side, before anything paints. Keeping that decision in one place beats
-      // asking the same question here as well.
-      //
-      // A full navigation, so the next document is rendered by a server that
-      // can see the new session cookie. That is what makes the header correct
-      // on the first paint of the destination.
-      window.location.assign(
-        `/onboarding?redirect=${encodeURIComponent(target)}`,
-      )
-    } catch {
-      setError('Enter the six digit code from your email.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function onUseAnotherEmail() {
-    await cancelSignIn()
-    await router.invalidate()
-  }
+  const onSubmit = form.handleSubmit((values) =>
+    verifyEmailCode.mutate(values, {
+      onSuccess: () => {
+        // Everyone goes via /onboarding, and its beforeLoad decides: someone
+        // who already has an account is redirected straight on to `target`,
+        // server side, before anything paints. Keeping that decision in one
+        // place beats asking the same question here as well.
+        //
+        // A full navigation, so the next document is rendered by a server that
+        // can see the new session cookie. That is what makes the header
+        // correct on the first paint of the destination.
+        window.location.assign(PATH.onboardingWithRedirect(target))
+      },
+      // A wrong or expired code comes back as an issue on `code`, so it lands
+      // under the input instead of in a toast above it.
+      onError: applyErrors,
+    }),
+  )
 
   return (
-    <main>
-      <h1>Enter your code</h1>
-      <p>
-        We emailed a six digit code to <strong>{email}</strong>. It is valid for
-        15 minutes, and it may land in your spam folder.
-      </p>
+    <Card className="mx-auto max-w-md">
+      <CardHeader>
+        <CardTitle>Enter your code</CardTitle>
+        <CardDescription>
+          We emailed a {EMAIL_CODE_LENGTH} digit code to{' '}
+          <strong className="text-foreground font-medium">{email}</strong>. It is valid for{' '}
+          {EMAIL_CODE_TTL_MINUTES} minutes, and it may land in your spam folder.
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={onSubmit}>
-        <label htmlFor="code">Code</label>
-        <input
-          id="code"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          required
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-        />
+      <Form {...form}>
+        <form onSubmit={onSubmit}>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Code</FormLabel>
+                  <FormControl>
+                    <InputOTP maxLength={EMAIL_CODE_LENGTH} autoComplete="one-time-code" {...field}>
+                      <InputOTPGroup>
+                        {Array.from({ length: EMAIL_CODE_LENGTH }, (_, index) => (
+                          <InputOTPSlot key={index} index={index} />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Checking...' : 'Continue'}
-        </button>
-      </form>
-
-      {error ? <p role="alert">{error}</p> : null}
-
-      <button type="button" onClick={onUseAnotherEmail}>
-        Use a different email
-      </button>
-    </main>
+          <CardFooter className="mt-6 gap-2">
+            <Button type="submit" isLoading={verifyEmailCode.isPending}>
+              Continue
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              isLoading={cancelSignIn.isPending}
+              onClick={() =>
+                cancelSignIn.mutate(undefined, {
+                  onSuccess: () => void router.invalidate(),
+                })
+              }
+            >
+              Use a different email
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
+    </Card>
   )
 }

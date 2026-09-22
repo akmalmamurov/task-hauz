@@ -55,8 +55,9 @@ export const getAccountState = createServerFn({ method: 'GET' }).handler(
       return { status: 'signed-out' }
     }
 
-    // getCurrentUser already proved the session resolves, so the cookie is
-    // there; read it again rather than passing a secret through a return value.
+    // resolveCurrentUser already proved the session resolves, so the cookie
+    // is there; read it again rather than passing the secret back through a
+    // return value.
     const secret = readSessionSecret()
     if (!secret) {
       return { status: 'signed-out' }

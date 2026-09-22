@@ -23,7 +23,6 @@ import { AppwriteException, ID } from 'node-appwrite'
 import { z } from 'zod'
 
 import { adminAccount, sessionAccount } from './appwrite'
-import { resolveCurrentUser, type CurrentUser } from './current-user'
 import {
   clearPendingSignIn,
   clearSessionSecret,
@@ -32,8 +31,6 @@ import {
   writePendingSignIn,
   writeSessionSecret,
 } from './session'
-
-export type { CurrentUser }
 
 const emailInput = z.object({
   email: z.email().max(254),
@@ -134,16 +131,6 @@ export const verifyEmailCode = createServerFn({ method: 'POST' })
       }
     }
   })
-
-/**
- * The RPC wrapper for routes. Server-to-server callers use
- * resolveCurrentUser() from ./current-user directly, so they do not go through
- * the server function machinery, and so this module keeps no plain server-only
- * function of its own. See the note at the top of ./current-user.
- */
-export const getCurrentUser = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<CurrentUser | null> => resolveCurrentUser(),
-)
 
 export const logout = createServerFn({ method: 'POST' }).handler(async () => {
   const secret = readSessionSecret()

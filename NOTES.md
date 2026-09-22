@@ -24,6 +24,32 @@ it before any HTML is produced, so `view-source` on a hard refresh already has
 the right header, and it is resolved once for the whole tree rather than per
 route.
 
+## The UI layer
+
+The pages started as plain HTML while the server side was being settled. They
+are now built out of shadcn/ui primitives, which are vendored into
+`src/components/ui/` rather than installed: the code is in the repository, it
+can be read, and there is no third-party layer between a form and its markup.
+
+Every form is react-hook-form plus a zod schema, and the schema lives in the
+feature module, not in the page. The same file that says a bio is at most 2000
+characters is the file the profile form validates against, so the rule and the
+message the visitor reads cannot drift apart. `noValidate` is on each form for
+the same reason: with it off the browser refuses a malformed email itself, in
+its own wording, and our message under the field never gets to appear.
+
+Failures come back in one shape (`ActionError`: a code, a message, and field
+issues). `useSend` turns a server function into a mutation and decides where
+the message goes — under the field when the failure names one, in a toast when
+it does not. Onboarding is the exception and asks for `silent`: the one failure
+it has to explain, an account that already exists with the other role, cannot
+be retried, so it becomes a screen rather than something that slides away.
+
+`npm test` runs vitest rather than `node --test`. The pure modules import each
+other through the `@/` alias, which vite and tsconfig resolve and plain node
+does not; one runner that reads the app's own config is less arbitrary than
+banning the alias from the files that happen to be tested.
+
 ## What I did not follow
 
 **"Send the signed-in user's id with the changes."** No id is sent. The
@@ -34,7 +60,7 @@ can edit every other user's profile.
 
 **"Send people to whatever page `redirect` names."** Taken literally that is an
 open redirect, and a phishing link that starts on our own domain is exactly the
-convincing kind. `safeRedirect` (`src/lib/safe-redirect.ts`) accepts only
+convincing kind. `safeRedirect` (`src/utils/safe-redirect.ts`) accepts only
 site-relative paths and falls back to `/`. Tested against the protocol-relative,
 backslash, scheme and control-character spellings.
 
@@ -78,7 +104,7 @@ I did not change the Function.
   currently costs an `account.get` plus a Function execution. A short-lived
   server cache keyed by session, invalidated on write, would remove almost all
   of them.
-- **Tests above the unit level.** `safeRedirect` and `buildProfilePatch` are
+- **Tests above the unit level.** `safeRedirect` and the profile schema are
   covered because they are pure. The parts most worth protecting, the redirect
   chain through sign-in and onboarding and the first-paint header, are not, and
   a Playwright pass over `view-source` is what would catch a regression there.

@@ -83,16 +83,27 @@ http://localhost:3000
 ```
 src/
   router.tsx                        router setup, one QueryClient per request
-  components/header.tsx             "Sign in", or the first name and "Log out"
   routes/__root.tsx                 document shell; resolves auth state for SSR
   routes/index.tsx                  home
   routes/signin.tsx                 email, then the six digit code
   routes/onboarding.tsx             first name, last name, role
   routes/profile.tsx                view and edit the personal account
-  lib/                              pure, shared by server and browser
+  components/header.tsx             "Sign in", or the first name and "Log out"
+  components/page.tsx               the one column every page is laid out in
+  components/ui/                    shadcn/ui primitives, vendored and trimmed
+  modules/                          one folder per feature the routes call into
+    auth/                           the sign-in schemas and their hooks
+    personal-account/               the profile schemas, the PATCH body, hooks
+  hooks/                            shared across features
+    use-send.ts                     a server function as a mutation, with the
+                                    success toast and the normalised failure
+    use-form-errors.ts              a failure's field issues, back on the form
+  types/                            shapes shared by the server and the browser
     personal-account.ts             the account shape and the AccountState union
-    profile-patch.ts                what the profile form means, as a PATCH body
-    safe-redirect.ts                which `redirect` targets are allowed
+    action-error.ts                 the one failure shape the UI reads
+  constants/                        limits and paths, named once
+  utils/safe-redirect.ts            which `redirect` targets are allowed
+  lib/                              small helpers: cn(), the toast wrappers
   server/                           server only; never reaches the browser
     env.ts                          APPWRITE_* read from process.env, via zod
     appwrite.ts                     the key-authorised and session clients
@@ -107,6 +118,23 @@ appwrite.config.json                database, table and Function definitions
 
 Read [`NOTES.md`](NOTES.md) for the decisions behind that layout and for the
 three places this app deliberately does not do what the brief asked.
+
+### How a page talks to the server
+
+A route never calls a server function directly. It renders a form, and the
+feature module owns everything else:
+
+```
+route  ──  zod schema      what the form accepts, and the message if it does not
+       ──  feature hook    calls the server function, raises an ActionError
+       ──  useSend         one toast on success, one normalised failure
+       ──  useFormErrors   field issues go back under their inputs
+```
+
+So there is one answer to "where is this rule written" (the schema), one to
+"what happens when it fails" (`ActionError`), and one to "where does the
+message appear": under the field if it belongs to a field, in a toast if it
+does not.
 
 ### Routes
 
@@ -125,7 +153,7 @@ Other scripts:
 ```bash
 npm run build       production build
 npm run typecheck   tsc --noEmit
-npm test            node --test over the pure modules in src/lib
+npm test            vitest over the pure modules (schemas, safeRedirect)
 npm run appwrite    the Appwrite CLI, scoped to this project's config
 ```
 

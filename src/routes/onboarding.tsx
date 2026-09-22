@@ -139,6 +139,10 @@ function OnboardingForm({ target }: { target: string }) {
       }
 
       setFormError(result.message)
+    } catch {
+      // The call never came back with a result of its own. Without this the
+      // promise rejected unhandled and Continue looked like it did nothing.
+      setFormError('We could not finish setting up your account. Try again.')
     } finally {
       setSubmitting(false)
     }

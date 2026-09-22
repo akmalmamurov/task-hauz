@@ -114,8 +114,10 @@ function ProfileForm({ account }: { account: PersonalAccount }) {
         setSaved(true)
 
         // Refreshes the root route's account state, so a changed first name
-        // shows up in the header without a reload.
-        await router.invalidate()
+        // shows up in the header without a reload. A failure here leaves a
+        // stale header, not a lost save, so it must not reach the catch below
+        // and claim the save failed.
+        await router.invalidate().catch(() => {})
         return
       }
 
@@ -146,6 +148,13 @@ function ProfileForm({ account }: { account: PersonalAccount }) {
       }
 
       setFormError(result.message)
+    } catch {
+      // The call never came back with a result of its own: the network, or
+      // the server function's validator disagreeing with the form. Neither
+      // has anything specific to say that is safe to show, so both get the
+      // one honest message. Without this the promise rejected unhandled and
+      // pressing Save looked like it did nothing.
+      setFormError('We could not save your changes. Try again.')
     } finally {
       setSubmitting(false)
     }

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { describe, test } from 'vitest'
 
-import { buildProfilePatch } from './profile-patch.ts'
-import type { ProfileFormValues, ProfilePatch } from './profile-patch.ts'
+import { buildProfilePatch } from './profile-patch'
+import type { ProfileFormValues, ProfilePatch } from './profile-patch'
 
 function form(overrides: Partial<ProfileFormValues> = {}): ProfileFormValues {
   return {
@@ -40,9 +40,9 @@ const fieldCases: Array<{
   { name: 'lastName trimmed', values: { lastName: '  Karimova  ' }, expected: { lastName: 'Karimova' } },
 ]
 
-test('buildProfilePatch maps form values onto the wire shape', async (t) => {
+describe('buildProfilePatch maps form values onto the wire shape', () => {
   for (const { name, values, expected } of fieldCases) {
-    await t.test(name, () => {
+    test(name, () => {
       const result = buildProfilePatch(form(values))
 
       assert.equal(result.ok, true)
@@ -63,9 +63,9 @@ const requiredCases: Array<{ name: string; values: Partial<ProfileFormValues>; f
   { name: 'both empty', values: { firstName: '', lastName: '' }, fields: ['firstName', 'lastName'] },
 ]
 
-test('buildProfilePatch refuses to send a blank required field', async (t) => {
+describe('buildProfilePatch refuses to send a blank required field', () => {
   for (const { name, values, fields } of requiredCases) {
-    await t.test(name, () => {
+    test(name, () => {
       const result = buildProfilePatch(form(values))
 
       assert.equal(result.ok, false)
@@ -96,9 +96,9 @@ const rejectedCases: Array<{ name: string; values: Partial<ProfileFormValues>; f
   },
 ]
 
-test('buildProfilePatch reports what the Function would refuse', async (t) => {
+describe('buildProfilePatch reports what the Function would refuse', () => {
   for (const { name, values, fields } of rejectedCases) {
-    await t.test(name, () => {
+    test(name, () => {
       const result = buildProfilePatch(form(values))
 
       assert.equal(result.ok, false)
@@ -109,8 +109,8 @@ test('buildProfilePatch reports what the Function would refuse', async (t) => {
   }
 })
 
-test('an empty optional field is cleared, not rejected as invalid', async (t) => {
-  await t.test('a blank email is not an invalid email', () => {
+describe('an empty optional field is cleared, not rejected as invalid', () => {
+  test('a blank email is not an invalid email', () => {
     const result = buildProfilePatch(form({ contactEmail: '   ' }))
 
     assert.equal(result.ok, true)
@@ -119,7 +119,7 @@ test('an empty optional field is cleared, not rejected as invalid', async (t) =>
     assert.equal(result.patch.contactEmail, null)
   })
 
-  await t.test('a value exactly at the limit is accepted', () => {
+  test('a value exactly at the limit is accepted', () => {
     const result = buildProfilePatch(
       form({ firstName: 'a'.repeat(100), bio: 'a'.repeat(2000) }),
     )
@@ -133,7 +133,7 @@ test('an empty optional field is cleared, not rejected as invalid', async (t) =>
  * visitor gets a 400 they cannot act on, so they are asserted against every
  * row above plus the awkward combinations.
  */
-test('invariants', async (t) => {
+describe('invariants', () => {
   const everyShape = [
     form(),
     ...fieldCases.map(({ values }) => form(values)),
@@ -141,7 +141,7 @@ test('invariants', async (t) => {
     form({ contactEmail: '   ', bio: '   ' }),
   ]
 
-  await t.test('an empty string never reaches the Function', () => {
+  test('an empty string never reaches the Function', () => {
     for (const values of everyShape) {
       const result = buildProfilePatch(values)
       if (!result.ok) continue
@@ -152,7 +152,7 @@ test('invariants', async (t) => {
     }
   })
 
-  await t.test('the body always carries all four fields, so "at least one field" cannot fire', () => {
+  test('the body always carries all four fields, so "at least one field" cannot fire', () => {
     for (const values of everyShape) {
       const result = buildProfilePatch(values)
       if (!result.ok) continue
@@ -166,7 +166,7 @@ test('invariants', async (t) => {
     }
   })
 
-  await t.test('the required fields are never null', () => {
+  test('the required fields are never null', () => {
     for (const values of everyShape) {
       const result = buildProfilePatch(values)
       if (!result.ok) continue

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { describe, test } from 'vitest'
 
-import { safeRedirect } from './safe-redirect.ts'
+import { safeRedirect } from './safe-redirect'
 
 const FALLBACK = '/'
 
@@ -53,17 +53,17 @@ const cases: Array<{ name: string; input: unknown; expected: string }> = [
   { name: 'array', input: ['/profile'], expected: FALLBACK },
 ]
 
-test('safeRedirect', async (t) => {
+describe('safeRedirect', () => {
   for (const { name, input, expected } of cases) {
-    await t.test(name, () => {
+    test(name, () => {
       assert.equal(safeRedirect(input), expected)
     })
   }
 })
 
-test('safeRedirect never returns a value that leaves the site', async (t) => {
+describe('safeRedirect never returns a value that leaves the site', () => {
   for (const { name, input } of cases) {
-    await t.test(name, () => {
+    test(name, () => {
       const result = safeRedirect(input)
       const resolved = new URL(result, 'http://hauz.invalid')
 

@@ -1,5 +1,9 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 
+import { Page } from '@/components/page'
+import { Button } from '@/components/ui/button'
+import { PATH } from '@/constants/path'
+
 export const Route = createFileRoute('/')({ component: Home })
 
 /**
@@ -11,19 +15,27 @@ function Home() {
   const { accountState } = Route.useRouteContext()
 
   return (
-    <main>
-      <h1>HAUZ</h1>
+    <Page className="flex flex-col items-start gap-4">
+      <h1 className="text-3xl font-semibold tracking-tight">HAUZ</h1>
 
       {accountState.status === 'signed-out' ? (
-        <p>
-          <Link to="/signin">Sign in</Link> with your email address. We send a
-          six digit code, there is no password.
-        </p>
+        <>
+          <p className="text-muted-foreground">
+            Sign in with your email address. We send a six digit code, there is
+            no password.
+          </p>
+          <Button asChild>
+            <Link to={PATH.signIn}>Sign in</Link>
+          </Button>
+        </>
       ) : (
-        <p>
-          You are signed in. <Link to="/profile">Your profile</Link>.
-        </p>
+        <>
+          <p className="text-muted-foreground">You are signed in.</p>
+          <Button asChild>
+            <Link to={PATH.profile}>Your profile</Link>
+          </Button>
+        </>
       )}
-    </main>
+    </Page>
   )
 }

@@ -13,71 +13,77 @@
  */
 
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+
+import { Button } from '@/components/ui/button'
+import { PATH } from '@/constants/path'
+import { useLogout } from '@/modules/auth'
 
 import type { AccountState } from '@/types/personal-account'
-import { logout } from '@/server/auth'
 
-export function Header({ state }: { state: AccountState }) {
-  return (
-    <header>
-      <nav>
-        <Link to="/">HAUZ</Link>
-        {state.status === 'signed-out' ? (
-          <Link to="/signin">Sign in</Link>
-        ) : (
-          <SignedIn state={state} />
-        )}
-      </nav>
-    </header>
-  )
-}
+export const Header = ({ state }: { state: AccountState }) => (
+  <header className="border-b">
+    <nav className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between gap-4 px-4">
+      <Link to={PATH.home} className="font-semibold tracking-tight">
+        HAUZ
+      </Link>
 
-function SignedIn({ state }: { state: Exclude<AccountState, { status: 'signed-out' }> }) {
-  return (
-    <>
-      {/*
-        'ready' is the normal case and the one TASK.md describes: the person's
-        first name, linked to their profile.
+      {state.status === 'signed-out' ? (
+        <Button asChild variant="ghost" size="sm">
+          <Link to={PATH.signIn}>Sign in</Link>
+        </Button>
+      ) : (
+        <SignedIn state={state} />
+      )}
+    </nav>
+  </header>
+)
 
-        'onboarding' has no name to show yet, and 'unavailable' means we could
-        not find out what it is. Neither may fall back to "Sign in": the person
-        *is* signed in, and offering sign-in to someone who already has a
-        session is both wrong and a dead end. So each says what is true instead.
-      */}
-      {state.status === 'ready' ? (
-        <Link to="/profile">{state.account.firstName}</Link>
-      ) : null}
-      {state.status === 'onboarding' ? (
-        <Link to="/onboarding">Finish setting up</Link>
-      ) : null}
-      {state.status === 'unavailable' ? <span>Signed in</span> : null}
+const SignedIn = ({ state }: { state: Exclude<AccountState, { status: 'signed-out' }> }) => (
+  <div className="flex items-center gap-1">
+    {/*
+      'ready' is the normal case and the one TASK.md describes: the person's
+      first name, linked to their profile.
 
-      <LogOutButton />
-    </>
-  )
-}
+      'onboarding' has no name to show yet, and 'unavailable' means we could
+      not find out what it is. Neither may fall back to "Sign in": the person
+      *is* signed in, and offering sign-in to someone who already has a
+      session is both wrong and a dead end. So each says what is true instead.
+    */}
+    {state.status === 'ready' ? (
+      <Button asChild variant="ghost" size="sm">
+        <Link to={PATH.profile}>{state.account.firstName}</Link>
+      </Button>
+    ) : null}
+    {state.status === 'onboarding' ? (
+      <Button asChild variant="ghost" size="sm">
+        <Link to={PATH.onboarding}>Finish setting up</Link>
+      </Button>
+    ) : null}
+    {state.status === 'unavailable' ? (
+      <span className="text-muted-foreground px-2 text-sm">Signed in</span>
+    ) : null}
 
-function LogOutButton() {
-  const [submitting, setSubmitting] = useState(false)
+    <LogOutButton />
+  </div>
+)
 
-  async function onClick() {
-    setSubmitting(true)
-
-    try {
-      await logout()
-    } catch {
-      // The server function failed to reach us or Appwrite. Reloading is still
-      // the right move: if the cookie was cleared the header corrects itself,
-      // and if it was not the person can try again from a known state.
-    }
-
-    window.location.assign('/')
-  }
+const LogOutButton = () => {
+  const logout = useLogout()
 
   return (
-    <button type="button" onClick={onClick} disabled={submitting}>
-      {submitting ? 'Logging out...' : 'Log out'}
-    </button>
+    <Button
+      variant="outline"
+      size="sm"
+      isLoading={logout.isPending}
+      onClick={() =>
+        // On settled, not on success. If the call failed we still do not know
+        // whether the cookie survived, and reloading is the way to find out:
+        // a cleared cookie fixes the header, an intact one leaves the person
+        // signed in and able to try again from a known state.
+        logout.mutate(undefined, { onSettled: () => window.location.assign(PATH.home) })
+      }
+    >
+      Log out
+    </Button>
   )
 }

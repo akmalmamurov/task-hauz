@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 
 import { Header } from '@/components/header'
+import { Toaster } from '@/components/ui/sonner'
 import type { AccountState } from '@/types/personal-account'
 import { getAccountState } from '@/server/personal-account'
 
@@ -69,6 +70,12 @@ function RootLayout() {
     <>
       <Header state={accountState} />
       <Outlet />
+      {/*
+        Toasts are for what happened after a submit ("Profile saved."), never
+        for what a field is missing: a field error belongs under its input,
+        where the person is looking. useSend is what keeps those two apart.
+      */}
+      <Toaster />
     </>
   )
 }

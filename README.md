@@ -81,20 +81,59 @@ http://localhost:3000
 ## What is in here
 
 ```
-src/                          the app you are building; it is empty on purpose
-  router.tsx                  router setup
-  routes/__root.tsx           the document shell
-  routes/index.tsx            placeholder home page
-functions/personal-account/   the Function, already written
-appwrite.config.json          database, table and Function definitions
+src/
+  router.tsx                        router setup, one QueryClient per request
+  components/header.tsx             "Sign in", or the first name and "Log out"
+  routes/__root.tsx                 document shell; resolves auth state for SSR
+  routes/index.tsx                  home
+  routes/signin.tsx                 email, then the six digit code
+  routes/onboarding.tsx             first name, last name, role
+  routes/profile.tsx                view and edit the personal account
+  lib/                              pure, shared by server and browser
+    personal-account.ts             the account shape and the AccountState union
+    profile-patch.ts                what the profile form means, as a PATCH body
+    safe-redirect.ts                which `redirect` targets are allowed
+  server/                           server only; never reaches the browser
+    env.ts                          APPWRITE_* read from process.env, via zod
+    appwrite.ts                     the key-authorised and session clients
+    session.ts                      the httpOnly cookies, named in one place
+    current-user.ts                 who is signed in, from the session cookie
+    auth.ts                         request a code, verify it, log out
+    personal-account-function.ts    the only caller of the Function
+    personal-account.ts             account state, create, update
+functions/personal-account/         the Function, unchanged from the starter
+appwrite.config.json                database, table and Function definitions
 ```
+
+Read [`NOTES.md`](NOTES.md) for the decisions behind that layout and for the
+three places this app deliberately does not do what the brief asked.
+
+### Routes
+
+| Path | Signed out | Signed in, no account | Signed in |
+|---|---|---|---|
+| `/` | sign-in link | link to onboarding | link to the profile |
+| `/signin` | email, then code | redirects to `redirect` | redirects to `redirect` |
+| `/onboarding` | redirects to `/signin` | the form | redirects to `redirect` |
+| `/profile` | redirects to `/signin?redirect=%2Fprofile` | redirects to `/onboarding` | view and edit |
+
+Every one of those redirects is decided in `beforeLoad`, so on a hard load the
+server answers `307` and the browser is never sent a frame of the wrong page.
 
 Other scripts:
 
 ```bash
 npm run build       production build
 npm run typecheck   tsc --noEmit
+npm test            node --test over the pure modules in src/lib
 npm run appwrite    the Appwrite CLI, scoped to this project's config
+```
+
+### Checking the secrets never reach the browser
+
+```bash
+npm run build
+grep -rl "node-appwrite\|APPWRITE_API_KEY\|hauz_session" dist/client/   # no hits
 ```
 
 ## The Function

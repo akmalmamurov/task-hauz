@@ -77,6 +77,58 @@ test('buildProfilePatch refuses to send a blank required field', async (t) => {
 })
 
 /**
+ * The rules the Function would apply anyway. They are checked here so a typo
+ * is a message under the field instead of a rejected server function, which
+ * throws rather than returning issues the form can display.
+ */
+const rejectedCases: Array<{ name: string; values: Partial<ProfileFormValues>; fields: string[] }> = [
+  { name: 'email without an @', values: { contactEmail: 'aziza.example.com' }, fields: ['contactEmail'] },
+  { name: 'email without a domain', values: { contactEmail: 'aziza@' }, fields: ['contactEmail'] },
+  { name: 'email that is only an @', values: { contactEmail: '@' }, fields: ['contactEmail'] },
+  { name: 'email over 254 characters', values: { contactEmail: `${'a'.repeat(250)}@b.com` }, fields: ['contactEmail'] },
+  { name: 'firstName over 100 characters', values: { firstName: 'a'.repeat(101) }, fields: ['firstName'] },
+  { name: 'lastName over 100 characters', values: { lastName: 'a'.repeat(101) }, fields: ['lastName'] },
+  { name: 'bio over 2000 characters', values: { bio: 'a'.repeat(2001) }, fields: ['bio'] },
+  {
+    name: 'several at once',
+    values: { firstName: '', contactEmail: 'nope', bio: 'a'.repeat(2001) },
+    fields: ['firstName', 'contactEmail', 'bio'],
+  },
+]
+
+test('buildProfilePatch reports what the Function would refuse', async (t) => {
+  for (const { name, values, fields } of rejectedCases) {
+    await t.test(name, () => {
+      const result = buildProfilePatch(form(values))
+
+      assert.equal(result.ok, false)
+      if (result.ok) return
+
+      assert.deepEqual(Object.keys(result.errors).sort(), [...fields].sort())
+    })
+  }
+})
+
+test('an empty optional field is cleared, not rejected as invalid', async (t) => {
+  await t.test('a blank email is not an invalid email', () => {
+    const result = buildProfilePatch(form({ contactEmail: '   ' }))
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+
+    assert.equal(result.patch.contactEmail, null)
+  })
+
+  await t.test('a value exactly at the limit is accepted', () => {
+    const result = buildProfilePatch(
+      form({ firstName: 'a'.repeat(100), bio: 'a'.repeat(2000) }),
+    )
+
+    assert.equal(result.ok, true)
+  })
+})
+
+/**
  * The two invariants the Function's contract depends on. If either breaks the
  * visitor gets a 400 they cannot act on, so they are asserted against every
  * row above plus the awkward combinations.

@@ -11,7 +11,7 @@ cookie, so browser JavaScript cannot read it and it never appears in a global,
 in `localStorage` or in the hydrated router payload. The API key is read from
 `process.env` in `src/server/` and is never returned, logged or rendered.
 `node-appwrite` is not in the client bundle; `npm run build` and a grep over
-`dist/client` is how I check that rather than by eye.
+`.output/public` is how I check that rather than by eye.
 
 Two Appwrite clients, kept apart on purpose (`src/server/appwrite.ts`). The
 key-authorised one can act on any user, so it is used only where there is no

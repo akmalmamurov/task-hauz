@@ -161,8 +161,28 @@ npm run appwrite    the Appwrite CLI, scoped to this project's config
 
 ```bash
 npm run build
-grep -rl "node-appwrite\|APPWRITE_API_KEY\|hauz_session" dist/client/   # no hits
+grep -rl "node-appwrite\|APPWRITE_API_KEY\|hauz_session" .output/public/   # no hits
 ```
+
+## Deploying
+
+The build goes through Nitro (`nitro()` in `vite.config.ts`), which reads the
+host from the environment: locally `npm run build` produces a plain Node server
+in `.output/`, runnable with
+
+```bash
+node --env-file=.env .output/server/index.mjs
+```
+
+and on Vercel the same command produces `.vercel/output`, a Node 22 function
+plus the static assets. Vercel detects TanStack Start and fills the build
+settings in itself; nothing needs to be set by hand except the four variables
+from `.env.example`, added as Environment Variables in the project (mark
+`APPWRITE_API_KEY` as sensitive). They are read by server code only and are not
+exposed to the browser.
+
+Nothing has to be configured on the Appwrite side for a new domain: the browser
+never talks to Appwrite, so there is no origin to allow.
 
 ## The Function
 

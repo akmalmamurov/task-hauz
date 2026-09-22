@@ -89,7 +89,7 @@ and pressing Save.
 Recorded because "I verified this" is a different claim from "the agent said
 so":
 
-- `npm run build`, then a grep over `dist/client` for `node-appwrite`,
+- `npm run build`, then a grep over the client output for `node-appwrite`,
   `APPWRITE_API_KEY`, `hauz_session` and `createEmailToken`. No hits. The only
   matches for `setKey` are `setKeyframes` and `getResetKey`.
 - `curl` on a cold server: `/profile` while signed out answers `307` with

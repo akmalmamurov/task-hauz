@@ -20,5 +20,12 @@ export const useCreatePersonalAccount = () =>
 
       return result.account
     },
-    { errorMessage: 'We could not finish setting up your account. Try again.' },
+    {
+      errorMessage: 'We could not finish setting up your account. Try again.',
+      // Onboarding is a page, not a dialog: whatever goes wrong there is shown
+      // on the page itself, either under the field or above the button. A
+      // toast that slides away would be the wrong shape for the one failure
+      // that has no retry — the account already existing with the other role.
+      silent: true,
+    },
   )

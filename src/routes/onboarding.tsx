@@ -1,14 +1,41 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { Page } from '@/components/page'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
-  PERSONAL_ROLES,
-  ROLE_LABELS,
-  type PersonalRole,
-} from '@/types/personal-account'
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { PATH } from '@/constants/path'
+import { useFormErrors } from '@/hooks/use-form-errors'
+import {
+  onboardingFormSchema,
+  useCreatePersonalAccount,
+  type OnboardingFormValues,
+} from '@/modules/personal-account'
+import { PERSONAL_ROLES, ROLE_LABELS } from '@/types/personal-account'
 import { safeRedirect } from '@/utils/safe-redirect'
-import { createPersonalAccount } from '@/server/personal-account'
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
@@ -24,9 +51,7 @@ export const Route = createFileRoute('/onboarding')({
     const state = context.accountState
 
     if (state.status === 'signed-out') {
-      throw redirect({
-        href: `/signin?redirect=${encodeURIComponent(`/onboarding?redirect=${target}`)}`,
-      })
+      throw redirect({ href: PATH.signInWithRedirect(PATH.onboardingWithRedirect(target)) })
     }
 
     // Already onboarded, so there is nothing to fill in. Sending them on is
@@ -48,180 +73,163 @@ function Onboarding() {
   // instead of guessing.
   if (state.status === 'unavailable') {
     return (
-      <main>
-        <h1>One moment</h1>
-        <p role="alert">
-          We could not load your account just now. Reload the page to try
-          again.
-        </p>
-      </main>
+      <Page>
+        <Alert variant="destructive" className="mx-auto max-w-md">
+          <AlertTitle>One moment</AlertTitle>
+          <AlertDescription>
+            We could not load your account just now. Reload the page to try again.
+          </AlertDescription>
+        </Alert>
+      </Page>
     )
   }
 
-  return <OnboardingForm target={target} />
+  return (
+    <Page>
+      <OnboardingForm target={target} />
+    </Page>
+  )
 }
 
-type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'role', string>>
+const ONBOARDING_FIELDS = ['firstName', 'lastName', 'role'] as const
 
 function OnboardingForm({ target }: { target: string }) {
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [role, setRole] = useState<PersonalRole | ''>('')
-
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const createPersonalAccount = useCreatePersonalAccount()
   // Set when the account already exists with the other role. Not a validation
   // error: their input is fine, the state is what disagrees.
   const [roleConflict, setRoleConflict] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault()
+  const form = useForm<OnboardingFormValues>({
+    resolver: zodResolver(onboardingFormSchema),
+    defaultValues: { firstName: '', lastName: '' },
+  })
+  const applyErrors = useFormErrors(form, ONBOARDING_FIELDS)
+
+  const onSubmit = form.handleSubmit((values) => {
+    setFormError(null)
 
     // Double submit is prevented properly by the Function: POST looks the
     // account up first, and the unique index on appwrite_user_id catches the
-    // race, so the loser still gets a 200. This guard is only so the button
-    // does not look ignored.
-    if (submitting) {
-      return
-    }
-
-    setFieldErrors({})
-    setFormError(null)
-
-    const errors: FieldErrors = {}
-    if (firstName.trim() === '') {
-      errors.firstName = 'This field is required.'
-    }
-    if (lastName.trim() === '') {
-      errors.lastName = 'This field is required.'
-    }
-    if (role === '') {
-      errors.role = 'Choose one.'
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors)
-      return
-    }
-
-    setSubmitting(true)
-
-    try {
-      const result = await createPersonalAccount({
-        data: { firstName: firstName.trim(), lastName: lastName.trim(), role: role as PersonalRole },
-      })
-
-      if (result.ok) {
+    // race, so the loser still gets a 200. The disabled button is only manners.
+    createPersonalAccount.mutate(values, {
+      onSuccess: () => {
         // A full navigation, so the next document is rendered by a server that
         // can already see the new account. Client routing would paint the
         // destination with the pre-onboarding state.
         window.location.assign(target)
-        return
-      }
-
-      if (result.code === 'personal_account_inconsistent') {
-        setRoleConflict(result.message)
-        return
-      }
-
-      if (result.code === 'invalid_request' && result.issues) {
-        const mapped: FieldErrors = {}
-        for (const issue of result.issues) {
-          if (issue.field === 'firstName' || issue.field === 'lastName' || issue.field === 'role') {
-            mapped[issue.field] = issue.message
-          }
+      },
+      onError: (error) => {
+        if (error.code === 'personal_account_inconsistent') {
+          setRoleConflict(error.message)
+          return
         }
 
-        setFieldErrors(mapped)
-        setFormError(Object.keys(mapped).length > 0 ? null : result.message)
-        return
-      }
-
-      setFormError(result.message)
-    } catch {
-      // The call never came back with a result of its own. Without this the
-      // promise rejected unhandled and Continue looked like it did nothing.
-      setFormError('We could not finish setting up your account. Try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+        const { unmatched } = applyErrors(error)
+        if (unmatched) setFormError(error.message)
+      },
+    })
+  })
 
   // The account exists, just not with the role they picked. Onboarding's goal
   // is already met, so the way out is forward, not a retry: the role is fixed
   // at creation and there is nothing they can do here to change it.
   if (roleConflict) {
     return (
-      <main>
-        <h1>You already have an account</h1>
-        <p role="alert">{roleConflict}</p>
-        <p>
-          A role is chosen once, when the account is created, and cannot be
-          changed afterwards. Contact us if it is wrong.
-        </p>
-        <button type="button" onClick={() => window.location.assign(target)}>
-          Continue
-        </button>
-      </main>
+      <Card className="mx-auto max-w-md">
+        <CardHeader>
+          <CardTitle>You already have an account</CardTitle>
+          <CardDescription>{roleConflict}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-muted-foreground text-sm">
+          A role is chosen once, when the account is created, and cannot be changed
+          afterwards. Contact us if it is wrong.
+        </CardContent>
+        <CardFooter>
+          <Button onClick={() => window.location.assign(target)}>Continue</Button>
+        </CardFooter>
+      </Card>
     )
   }
 
   return (
-    <main>
-      <h1>Tell us who you are</h1>
-      <p>We need this once, to finish setting up your account.</p>
+    <Card className="mx-auto max-w-md">
+      <CardHeader>
+        <CardTitle>Tell us who you are</CardTitle>
+        <CardDescription>
+          We need this once, to finish setting up your account.
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={onSubmit}>
-        <div>
-          <label htmlFor="firstName">First name</label>
-          <input
-            id="firstName"
-            name="firstName"
-            autoComplete="given-name"
-            value={firstName}
-            onChange={(event) => setFirstName(event.target.value)}
-          />
-          {fieldErrors.firstName ? <p role="alert">{fieldErrors.firstName}</p> : null}
-        </div>
+      <Form {...form}>
+        <form onSubmit={onSubmit}>
+          <CardContent className="grid gap-6">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>First name</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="given-name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div>
-          <label htmlFor="lastName">Last name</label>
-          <input
-            id="lastName"
-            name="lastName"
-            autoComplete="family-name"
-            value={lastName}
-            onChange={(event) => setLastName(event.target.value)}
-          />
-          {fieldErrors.lastName ? <p role="alert">{fieldErrors.lastName}</p> : null}
-        </div>
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last name</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="family-name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <fieldset>
-          <legend>I am a</legend>
-          {PERSONAL_ROLES.map((option) => (
-            <div key={option}>
-              <input
-                id={`role-${option}`}
-                type="radio"
-                name="role"
-                value={option}
-                checked={role === option}
-                onChange={() => setRole(option)}
-              />
-              <label htmlFor={`role-${option}`}>{ROLE_LABELS[option]}</label>
-            </div>
-          ))}
-          {fieldErrors.role ? <p role="alert">{fieldErrors.role}</p> : null}
-          <p>This cannot be changed later.</p>
-        </fieldset>
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>I am a</FormLabel>
+                  <FormControl>
+                    <RadioGroup value={field.value ?? ''} onValueChange={field.onChange}>
+                      {PERSONAL_ROLES.map((role) => (
+                        <div key={role} className="flex items-center gap-2">
+                          <RadioGroupItem id={`role-${role}`} value={role} />
+                          <Label htmlFor={`role-${role}`} className="font-normal">
+                            {ROLE_LABELS[role]}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>This cannot be changed later.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Setting up...' : 'Continue'}
-        </button>
-      </form>
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </CardContent>
 
-      {formError ? <p role="alert">{formError}</p> : null}
-    </main>
+          <CardFooter className="mt-6">
+            <Button type="submit" isLoading={createPersonalAccount.isPending}>
+              Continue
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
+    </Card>
   )
 }

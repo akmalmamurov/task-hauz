@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { Page } from '@/components/page'
+import { CardPage } from '@/components/page'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,21 +73,21 @@ function Onboarding() {
   // instead of guessing.
   if (state.status === 'unavailable') {
     return (
-      <Page>
-        <Alert variant="destructive" className="mx-auto max-w-md">
+      <CardPage>
+        <Alert variant="destructive">
           <AlertTitle>One moment</AlertTitle>
           <AlertDescription>
             We could not load your account just now. Reload the page to try again.
           </AlertDescription>
         </Alert>
-      </Page>
+      </CardPage>
     )
   }
 
   return (
-    <Page>
+    <CardPage>
       <OnboardingForm target={target} />
-    </Page>
+    </CardPage>
   )
 }
 
@@ -136,9 +136,9 @@ function OnboardingForm({ target }: { target: string }) {
   // at creation and there is nothing they can do here to change it.
   if (roleConflict) {
     return (
-      <Card className="mx-auto max-w-md">
+      <Card>
         <CardHeader>
-          <CardTitle>You already have an account</CardTitle>
+          <CardTitle className="text-xl">You already have an account</CardTitle>
           <CardDescription>{roleConflict}</CardDescription>
         </CardHeader>
         <CardContent className="text-muted-foreground text-sm">
@@ -146,16 +146,18 @@ function OnboardingForm({ target }: { target: string }) {
           afterwards. Contact us if it is wrong.
         </CardContent>
         <CardFooter>
-          <Button onClick={() => window.location.assign(target)}>Continue</Button>
+          <Button className="w-full" onClick={() => window.location.assign(target)}>
+            Continue
+          </Button>
         </CardFooter>
       </Card>
     )
   }
 
   return (
-    <Card className="mx-auto max-w-md">
+    <Card>
       <CardHeader>
-        <CardTitle>Tell us who you are</CardTitle>
+        <CardTitle className="text-xl">Tell us who you are</CardTitle>
         <CardDescription>
           We need this once, to finish setting up your account.
         </CardDescription>
@@ -202,12 +204,16 @@ function OnboardingForm({ target }: { target: string }) {
                   <FormControl>
                     <RadioGroup value={field.value ?? ''} onValueChange={field.onChange}>
                       {PERSONAL_ROLES.map((role) => (
-                        <div key={role} className="flex items-center gap-2">
+                        // The whole row is the target, not just the dot: this
+                        // is the one choice on the page and it is permanent.
+                        <Label
+                          key={role}
+                          htmlFor={`role-${role}`}
+                          className="hover:bg-accent/40 has-[[data-state=checked]]:border-primary cursor-pointer gap-3 rounded-lg border p-3 font-normal"
+                        >
                           <RadioGroupItem id={`role-${role}`} value={role} />
-                          <Label htmlFor={`role-${role}`} className="font-normal">
-                            {ROLE_LABELS[role]}
-                          </Label>
-                        </div>
+                          {ROLE_LABELS[role]}
+                        </Label>
                       ))}
                     </RadioGroup>
                   </FormControl>
@@ -225,7 +231,7 @@ function OnboardingForm({ target }: { target: string }) {
           </CardContent>
 
           <CardFooter className="mt-6">
-            <Button type="submit" isLoading={createPersonalAccount.isPending}>
+            <Button type="submit" className="w-full" isLoading={createPersonalAccount.isPending}>
               Continue
             </Button>
           </CardFooter>

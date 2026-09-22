@@ -13,7 +13,7 @@ export const InputOTP = ({
 }: ComponentPropsWithoutRef<typeof OTPInput> & { containerClassName?: string }) => (
   <OTPInput
     containerClassName={cn(
-      'flex items-center gap-2 has-disabled:opacity-50',
+      'flex w-full items-center gap-2 has-disabled:opacity-50',
       containerClassName,
     )}
     className={cn('disabled:cursor-not-allowed', className)}
@@ -21,8 +21,12 @@ export const InputOTP = ({
   />
 )
 
+/** Boxes stand apart rather than sharing borders: one digit reads as one box. */
 export const InputOTPGroup = ({ className, ...props }: ComponentPropsWithoutRef<'div'>) => (
-  <div className={cn('flex items-center', className)} {...props} />
+  <div
+    className={cn('flex w-full items-center justify-center gap-2 sm:gap-3', className)}
+    {...props}
+  />
 )
 
 type SlotProps = ComponentPropsWithoutRef<'div'> & { index: number }
@@ -35,8 +39,9 @@ export const InputOTPSlot = ({ index, className, ...props }: SlotProps) => {
     <div
       data-active={slot?.isActive}
       className={cn(
-        'relative flex h-12 w-11 items-center justify-center border-y border-r text-base font-medium shadow-xs transition-all outline-none',
-        'first:rounded-l-md first:border-l last:rounded-r-md',
+        // The boxes share the row rather than each claiming a fixed width, so
+        // six of them and their gaps fit whatever the screen is.
+        'relative flex aspect-square w-full max-w-12 flex-1 items-center justify-center rounded-lg border text-base font-medium shadow-xs transition-all outline-none sm:text-lg',
         'data-[active=true]:border-ring data-[active=true]:ring-[3px] data-[active=true]:ring-ring/50 data-[active=true]:z-10',
         'aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20',
         className,
